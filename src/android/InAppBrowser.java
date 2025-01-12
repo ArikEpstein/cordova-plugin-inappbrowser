@@ -113,6 +113,7 @@ public class InAppBrowser extends CordovaPlugin {
     private static final String CLOSE_BUTTON_CAPTION = "closebuttoncaption";
     private static final String CLOSE_BUTTON_COLOR = "closebuttoncolor";
     private static final String LEFT_TO_RIGHT = "lefttoright";
+    private static final String HIDE_ON_EXIT = "hideonexit";
     private static final String HIDE_NAVIGATION = "hidenavigationbuttons";
     private static final String NAVIGATION_COLOR = "navigationbuttoncolor";
     private static final String HIDE_URL = "hideurlbar";
@@ -144,6 +145,7 @@ public class InAppBrowser extends CordovaPlugin {
     private String closeButtonCaption = "";
     private String closeButtonColor = "";
     private boolean leftToRight = false;
+    private boolean hideOnExit = false;
     private int toolbarColor = android.graphics.Color.LTGRAY;
     private boolean hideNavigationButtons = false;
     private String navigationButtonColor = "";
@@ -542,6 +544,15 @@ public class InAppBrowser extends CordovaPlugin {
                             dialog.dismiss();
                             dialog = null;
                         }
+                        // PR - https://github.com/apache/cordova-plugin-inappbrowser/pull/982/
+                        // InAppBrowser will not destroy WebView after being closed
+                          if (url.equals(new String("about:blank"))) {
+                            inAppWebView.onPause();
+                            inAppWebView.removeAllViews();
+                            inAppWebView.destroyDrawingCache();
+                            inAppWebView.destroy();
+                            inAppWebView = null;
+                         }
                     }
                 });
                 // NB: From SDK 19: "If you call methods on WebView from any thread
@@ -697,6 +708,9 @@ public class InAppBrowser extends CordovaPlugin {
             if (closeButtonColorSet != null) {
                 closeButtonColor = closeButtonColorSet;
             }
+            String hideOnExitSet = features.get(HIDE_ON_EXIT);
+            hideOnExit = hideOnExitSet != null && hideOnExitSet.equals("yes");
+
             String leftToRightSet = features.get(LEFT_TO_RIGHT);
             leftToRight = leftToRightSet != null && leftToRightSet.equals("yes");
 
@@ -779,9 +793,14 @@ public class InAppBrowser extends CordovaPlugin {
                 _close.setId(Integer.valueOf(id));
                 _close.setOnClickListener(new View.OnClickListener() {
                     public void onClick(View v) {
-                        closeDialog();
+                          if (hideOnExit) {
+                             hideDialog();
+                         } else {
+                           loseDialog();
+                         }
                     }
                 });
+
 
                 return _close;
             }
@@ -850,7 +869,12 @@ public class InAppBrowser extends CordovaPlugin {
 
                 back.setOnClickListener(new View.OnClickListener() {
                     public void onClick(View v) {
-                        goBack();
+                     // if (hideOnExit) {
+                       //  hideDialog();
+                      // } else {
+                         goBack();
+                         // closeDialog();
+                     // }
                     }
                 });
 
