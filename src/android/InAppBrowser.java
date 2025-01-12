@@ -794,9 +794,19 @@ public class InAppBrowser extends CordovaPlugin {
                 _close.setOnClickListener(new View.OnClickListener() {
                     public void onClick(View v) {
                           if (hideOnExit) {
-                             hideDialog();
+                                 this.cordova.getActivity().runOnUiThread(new Runnable() {
+                                             @Override
+                                             public void run() {
+                                                 if (dialog != null && !cordova.getActivity().isFinishing()) {
+                                                     dialog.hide();
+                                                 }
+                                             }
+                                         });
+                                         PluginResult pluginResult = new PluginResult(PluginResult.Status.OK);
+                                         pluginResult.setKeepCallback(true);
+                                         this.callbackContext.sendPluginResult(pluginResult);
                          } else {
-                           loseDialog();
+                           closeDialog();
                          }
                     }
                 });
