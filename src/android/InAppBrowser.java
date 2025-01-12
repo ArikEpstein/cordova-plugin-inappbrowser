@@ -523,6 +523,30 @@ public class InAppBrowser extends CordovaPlugin {
         }
     }
 
+
+
+     public void hideDialog() {
+      this.cordova.getActivity().runOnUiThread(new Runnable() {
+                     @Override
+                     public void run() {
+                     // if (dialog != null && !cordova.getActivity().isFinishing()) {
+                         if (dialog != null) {
+                             dialog.hide();
+                         }
+                     }
+                 });
+
+//        try {
+//              JSONObject obj = new JSONObject();
+//              obj.put("type", "hide");
+//              sendUpdate(obj, true);
+//          } catch (JSONException ex) {
+//              Log.e(LOG_TAG, "Error sending hide event", ex);
+//          }
+
+
+     }
+
     /**
      * Closes the dialog
      */
@@ -794,17 +818,9 @@ public class InAppBrowser extends CordovaPlugin {
                 _close.setOnClickListener(new View.OnClickListener() {
                     public void onClick(View v) {
                           if (hideOnExit) {
-                                 this.cordova.getActivity().runOnUiThread(new Runnable() {
-                                             @Override
-                                             public void run() {
-                                                 if (dialog != null && !cordova.getActivity().isFinishing()) {
-                                                     dialog.hide();
-                                                 }
-                                             }
-                                         });
-                                         PluginResult pluginResult = new PluginResult(PluginResult.Status.OK);
-                                         pluginResult.setKeepCallback(true);
-                                         this.callbackContext.sendPluginResult(pluginResult);
+                            if (dialog != null && !cordova.getActivity().isFinishing()) {
+                                                                                dialog.hide();
+                                                                            }
                          } else {
                            closeDialog();
                          }
