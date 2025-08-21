@@ -113,7 +113,6 @@ public class InAppBrowser extends CordovaPlugin {
     private static final String CLOSE_BUTTON_CAPTION = "closebuttoncaption";
     private static final String CLOSE_BUTTON_COLOR = "closebuttoncolor";
     private static final String LEFT_TO_RIGHT = "lefttoright";
-    private static final String HIDE_ON_EXIT = "hideonexit";
     private static final String HIDE_NAVIGATION = "hidenavigationbuttons";
     private static final String NAVIGATION_COLOR = "navigationbuttoncolor";
     private static final String HIDE_URL = "hideurlbar";
@@ -145,7 +144,6 @@ public class InAppBrowser extends CordovaPlugin {
     private String closeButtonCaption = "";
     private String closeButtonColor = "";
     private boolean leftToRight = false;
-    private boolean hideOnExit = false;
     private int toolbarColor = android.graphics.Color.LTGRAY;
     private boolean hideNavigationButtons = false;
     private String navigationButtonColor = "";
@@ -161,7 +159,7 @@ public class InAppBrowser extends CordovaPlugin {
      * Executes the request and returns PluginResult.
      *
      * @param action the action to execute.
-     * @param args JSONArry of arguments for the plugin.
+     * @param args JSONArray of arguments for the plugin.
      * @param callbackContext the callbackContext used when calling back into JavaScript.
      * @return A PluginResult object with a status and message.
      */
@@ -354,6 +352,16 @@ public class InAppBrowser extends CordovaPlugin {
      */
     @Override
     public void onReset() {
+        // Properly destroy WebView to prevent memory leaks
+        if (inAppWebView != null) {
+            inAppWebView.stopLoading();
+            if (inAppWebView.getParent() != null) {
+                ((android.view.ViewGroup) inAppWebView.getParent()).removeView(inAppWebView);
+            }
+            inAppWebView.removeAllViews();
+            inAppWebView.destroy();
+            inAppWebView = null;
+        }
         closeDialog();
     }
 
@@ -382,6 +390,16 @@ public class InAppBrowser extends CordovaPlugin {
      * Stop listener.
      */
     public void onDestroy() {
+        // Properly destroy WebView to prevent memory leaks
+        if (inAppWebView != null) {
+            inAppWebView.stopLoading();
+            if (inAppWebView.getParent() != null) {
+                ((android.view.ViewGroup) inAppWebView.getParent()).removeView(inAppWebView);
+            }
+            inAppWebView.removeAllViews();
+            inAppWebView.destroy();
+            inAppWebView = null;
+        }
         closeDialog();
     }
 
@@ -524,31 +542,10 @@ public class InAppBrowser extends CordovaPlugin {
     }
 
 
-
-     public void hideDialog() {
-      this.cordova.getActivity().runOnUiThread(new Runnable() {
-                     @Override
-                     public void run() {
-                     // if (dialog != null && !cordova.getActivity().isFinishing()) {
-                         if (dialog != null) {
-                             dialog.hide();
-                         }
-                     }
-                 });
-
-//        try {
-//              JSONObject obj = new JSONObject();
-//              obj.put("type", "hide");
-//              sendUpdate(obj, true);
-//          } catch (JSONException ex) {
-//              Log.e(LOG_TAG, "Error sending hide event", ex);
-//          }
-
-
-     }
-
     /**
-     * Closes the dialog
+     * Closes the InAppBrowser dialog.
+     * This method is called when the user clicks the close button or when the
+     * back button is pressed.
      */
     public void closeDialog() {
         this.cordova.getActivity().runOnUiThread(new Runnable() {
@@ -561,22 +558,33 @@ public class InAppBrowser extends CordovaPlugin {
                     return;
                 }
 
+                // Clear the reference immediately to prevent multiple cleanup attempts
+                inAppWebView = null;
+
+                // Stop any ongoing loading
+                childView.stopLoading();
+
+                // Remove all views and destroy the WebView to prevent memory leaks
                 childView.setWebViewClient(new WebViewClient() {
                     // NB: wait for about:blank before dismissing
                     public void onPageFinished(WebView view, String url) {
+                        // Destroy the WebView to free up resources
+                        if (childView.getParent() != null) {
+                            ((android.view.ViewGroup) childView.getParent()).removeView(childView);
+                        }
+                        childView.removeAllViews();
+                        childView.destroy();
+
                         if (dialog != null && !cordova.getActivity().isFinishing()) {
-                            dialog.dismiss();
+                            // Dismiss the dialog
+                            try {
+                              dialog.dismiss();
+                            } catch(IllegalArgumentException e) {
+                                LOG.e(LOG_TAG, "Caught exception when trying to close IAB dialog: " + e);
+                            }
+                            // Clear the dialog reference
                             dialog = null;
                         }
-                        // PR - https://github.com/apache/cordova-plugin-inappbrowser/pull/982/
-                        // InAppBrowser will not destroy WebView after being closed
-                          if (url.equals(new String("about:blank"))) {
-                            inAppWebView.onPause();
-                            inAppWebView.removeAllViews();
-                            inAppWebView.destroyDrawingCache();
-                            inAppWebView.destroy();
-                            inAppWebView = null;
-                         }
                     }
                 });
                 // NB: From SDK 19: "If you call methods on WebView from any thread
@@ -732,9 +740,6 @@ public class InAppBrowser extends CordovaPlugin {
             if (closeButtonColorSet != null) {
                 closeButtonColor = closeButtonColorSet;
             }
-            String hideOnExitSet = features.get(HIDE_ON_EXIT);
-            hideOnExit = hideOnExitSet != null && hideOnExitSet.equals("yes");
-
             String leftToRightSet = features.get(LEFT_TO_RIGHT);
             leftToRight = leftToRightSet != null && leftToRightSet.equals("yes");
 
@@ -817,16 +822,9 @@ public class InAppBrowser extends CordovaPlugin {
                 _close.setId(Integer.valueOf(id));
                 _close.setOnClickListener(new View.OnClickListener() {
                     public void onClick(View v) {
-                          if (hideOnExit) {
-                            if (dialog != null && !cordova.getActivity().isFinishing()) {
-                                                                                dialog.hide();
-                                                                            }
-                         } else {
-                           closeDialog();
-                         }
+                        closeDialog();
                     }
                 });
-
 
                 return _close;
             }
@@ -895,12 +893,7 @@ public class InAppBrowser extends CordovaPlugin {
 
                 back.setOnClickListener(new View.OnClickListener() {
                     public void onClick(View v) {
-                     // if (hideOnExit) {
-                       //  hideDialog();
-                      // } else {
-                         goBack();
-                         // closeDialog();
-                     // }
+                        goBack();
                     }
                 });
 
@@ -1019,9 +1012,9 @@ public class InAppBrowser extends CordovaPlugin {
                 settings.setBuiltInZoomControls(enableZoom);
                 settings.setDisplayZoomControls(showZoomControls);
                 settings.setPluginState(android.webkit.WebSettings.PluginState.ON);
-                
+
                 // download event
-                
+
                 inAppWebView.setDownloadListener(
                     new DownloadListener(){
                         public void onDownloadStart(
@@ -1042,7 +1035,7 @@ public class InAppBrowser extends CordovaPlugin {
                             }
                         }
                     }
-                );        
+                );
 
                 // Add postMessage interface
                 class JsObject {

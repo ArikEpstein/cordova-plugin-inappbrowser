@@ -34,7 +34,6 @@
         self.clearsessioncache = NO;
         self.hidespinner = NO;
 
-        self.hideonexit = NO;
         self.enableviewportscale = NO;
         self.mediaplaybackrequiresuseraction = NO;
         self.allowinlinemediaplayback = NO;
