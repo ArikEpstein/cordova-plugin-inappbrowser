@@ -270,11 +270,20 @@ public class InAppBrowser extends CordovaPlugin {
                 @SuppressLint("NewApi")
                 @Override
                 public void run() {
+                    if (inAppWebView == null) {
+                        // LOG.e(LOG_TAG, "InAppWebView is null in loadAfterBeforeload");
+                        return;
+                    }
                     if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.O) {
-                        currentClient.waitForBeforeload = false;
-                        inAppWebView.setWebViewClient(currentClient);
+                        if (currentClient != null) {
+                            currentClient.waitForBeforeload = false;
+                            inAppWebView.setWebViewClient(currentClient);
+                        }
                     } else {
-                        ((InAppBrowserClient)inAppWebView.getWebViewClient()).waitForBeforeload = false;
+                        WebViewClient client = inAppWebView.getWebViewClient();
+                        if (client instanceof InAppBrowserClient) {
+                            ((InAppBrowserClient)client).waitForBeforeload = false;
+                        }
                     }
                     inAppWebView.loadUrl(url);
 
@@ -370,7 +379,7 @@ public class InAppBrowser extends CordovaPlugin {
      */
     @Override
     public void onPause(boolean multitasking) {
-        if (shouldPauseInAppBrowser) {
+        if (shouldPauseInAppBrowser && inAppWebView != null) {
             inAppWebView.onPause();
         }
     }
@@ -380,7 +389,7 @@ public class InAppBrowser extends CordovaPlugin {
      */
     @Override
     public void onResume(boolean multitasking) {
-        if (shouldPauseInAppBrowser) {
+        if (shouldPauseInAppBrowser && inAppWebView != null) {
             inAppWebView.onResume();
         }
     }
@@ -607,7 +616,7 @@ public class InAppBrowser extends CordovaPlugin {
      * Checks to see if it is possible to go back one page in history, then does so.
      */
     public void goBack() {
-        if (this.inAppWebView.canGoBack()) {
+        if (this.inAppWebView != null && this.inAppWebView.canGoBack()) {
             this.inAppWebView.goBack();
         }
     }
@@ -617,7 +626,7 @@ public class InAppBrowser extends CordovaPlugin {
      * @return boolean
      */
     public boolean canGoBack() {
-        return this.inAppWebView.canGoBack();
+        return this.inAppWebView != null && this.inAppWebView.canGoBack();
     }
 
     /**
@@ -632,7 +641,7 @@ public class InAppBrowser extends CordovaPlugin {
      * Checks to see if it is possible to go forward one page in history, then does so.
      */
     private void goForward() {
-        if (this.inAppWebView.canGoForward()) {
+        if (this.inAppWebView != null && this.inAppWebView.canGoForward()) {
             this.inAppWebView.goForward();
         }
     }
@@ -643,8 +652,15 @@ public class InAppBrowser extends CordovaPlugin {
      * @param url to load
      */
     private void navigate(String url) {
-        InputMethodManager imm = (InputMethodManager)this.cordova.getActivity().getSystemService(Context.INPUT_METHOD_SERVICE);
-        imm.hideSoftInputFromWindow(edittext.getWindowToken(), 0);
+        if (this.inAppWebView == null) {
+            // LOG.e(LOG_TAG, "InAppWebView is null in navigate");
+            return;
+        }
+
+        if (edittext != null) {
+            InputMethodManager imm = (InputMethodManager)this.cordova.getActivity().getSystemService(Context.INPUT_METHOD_SERVICE);
+            imm.hideSoftInputFromWindow(edittext.getWindowToken(), 0);
+        }
 
         if (!url.startsWith("http") && !url.startsWith("file:")) {
             this.inAppWebView.loadUrl("http://" + url);
@@ -1419,7 +1435,7 @@ public class InAppBrowser extends CordovaPlugin {
             }
 
             // Update the UI if we haven't already
-            if (!newloc.equals(edittext.getText().toString())) {
+            if (edittext != null && !newloc.equals(edittext.getText().toString())) {
                 edittext.setText(newloc);
             }
 
